@@ -1,0 +1,42 @@
+version: '3.7'
+services:
+  centos7:
+    container_name: centos7
+    image: "centos/python-38-centos7:20210726-fad62e9"
+    entrypoint: "/bin/bash"
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.2
+    tty: true
+    stdin_open: true
+#    volumes:
+#      - ~/.ssh:/root/.ssh
+  ubuntu:
+    container_name: ubuntu
+    image: "fnndsc/ubuntu-python3:ubuntu20.04-python3.8.10"
+    entrypoint: "/bin/bash"
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.3
+    tty: true
+    stdin_open: true
+#    volumes:
+#      - ~/.ssh:/root/.ssh
+  fedora:
+    container_name: fedora
+    image: "pycontribs/fedora:latest"
+    entrypoint: "/bin/bash"
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.4
+    tty: true
+    stdin_open: true
+  #    volumes:
+  #      - ~/.ssh:/root/.ssh
+networks:
+  ansible_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "10.5.0.0/16"
+          gateway: "10.5.0.1"
