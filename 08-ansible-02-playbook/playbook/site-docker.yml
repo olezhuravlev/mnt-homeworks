@@ -1,14 +1,22 @@
 ---
 - name: Install Clickhouse
   hosts: clickhouse-server
-  remote_user: centos
   handlers:
     - name: Start clickhouse service
-      become: true
-      ansible.builtin.service:
-        name: clickhouse-server
-        state: restarted
+      remote_user: root
+      # ansible.builtin.service: - ERROR "Service is in unknown state"!
+      #   name: clickhouse-server
+      #   state: restarted
+      ansible.builtin.command: "service clickhouse-server start"
   tasks:
+    - name: Install additional tools
+      remote_user: root
+      ansible.builtin.yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - "vim-enhanced"
     - block:
         - name: Get clickhouse distrib
           ansible.builtin.get_url:
@@ -35,7 +43,7 @@
         path: clickhouse-server-{{ clickhouse_version }}.rpm
       register: ch_server
     - name: Install clickhouse packages
-      become: true
+      remote_user: root
       ansible.builtin.yum:
         name:
           - clickhouse-common-static-{{ clickhouse_version }}.rpm

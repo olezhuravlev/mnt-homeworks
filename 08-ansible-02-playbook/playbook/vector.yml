@@ -1,0 +1,31 @@
+---
+- name: Vector installation
+  hosts: vector
+  remote_user: centos
+  tasks:
+    - name: Install additional tools
+      become: true
+      ansible.builtin.yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - "vim-enhanced"
+    - name: Downloading Vector distributives
+      ansible.builtin.get_url:
+        mode: 0644
+        url: "https://packages.timber.io/vector/latest/{{ vector_latest }}.rpm"
+        dest: "/tmp/{{ vector_latest }}.rpm"
+    - name: Check file exists "vector"
+      ansible.builtin.stat:
+        path: /tmp/{{ vector_latest }}.rpm
+      register: vector_stat
+    - name: Install Vector packages
+      become: true
+      ansible.builtin.yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - "/tmp/{{ vector_latest }}.rpm"
+      when: vector_stat.stat.exists

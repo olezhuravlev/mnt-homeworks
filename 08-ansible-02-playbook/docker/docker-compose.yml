@@ -1,0 +1,36 @@
+version: '3.7'
+services:
+  clickhouse-client:
+    container_name: clickhouse-client
+    image: "centos/python-38-centos7:latest"
+    # entrypoint: "/bin/bash"
+    tty: true
+    stdin_open: true
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.2
+  clickhouse-server:
+    container_name: clickhouse-server
+    image: "centos/python-38-centos7:latest"
+    entrypoint: "/bin/bash"
+    tty: true
+    stdin_open: true
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.3
+  vector:
+    container_name: vector
+    image: "centos/python-38-centos7:latest"
+    entrypoint: "/bin/bash"
+    tty: true
+    stdin_open: true
+    networks:
+      ansible_network:
+        ipv4_address: 10.5.0.4
+networks:
+  ansible_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: "10.5.0.0/16"
+          gateway: "10.5.0.1"

@@ -1,4 +1,5 @@
 ---
+vector_latest: "vector-latest-1.x86_64"
 clickhouse_version: "22.3.3.44"
 clickhouse_packages:
   - clickhouse-client

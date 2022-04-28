@@ -1,0 +1,9 @@
+---
+clickhouse:
+  hosts:
+    clickhouse-server:
+      ansible_connection: docker
+#    clickhouse-client:
+#      ansible_connection: docker
+    vector:
+      ansible_connection: docker
