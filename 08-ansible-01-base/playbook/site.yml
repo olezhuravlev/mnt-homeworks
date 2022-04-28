@@ -1,10 +1,14 @@
 ---
-  - name: Print os facts
-    hosts: all
-    tasks:
-      - name: Print OS
-        debug:
-          msg: "{{ ansible_distribution }}"
-      - name: Print fact
-        debug:
-          msg: "{{ some_fact }}"
+- name: Print os facts
+  hosts: all
+  tasks:
+    - name: Print OS
+      debug:
+        msg: "{{ ansible_distribution }}"
+    - name: Print fact
+      debug:
+        msg: "{{ some_fact }}"
+    - name: Print Original Fedora varible
+      when: ansible_host == "fedora"
+      debug:
+        msg: "{{ fed_fact }}"
