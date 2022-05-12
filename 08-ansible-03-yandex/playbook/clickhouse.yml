@@ -1,0 +1,75 @@
+---
+- name: Install Clickhouse
+  hosts: clickhouse
+  remote_user: centos
+  handlers:
+    - name: restart-clickhouse-service
+      become: true
+      ansible.builtin.service:
+        name: clickhouse-server
+        state: restarted
+      when: not ansible_check_mode
+  tasks:
+    - name: Who is the current user?
+      ansible.builtin.debug:
+        msg: "{{ ansible_user_id }}"
+    - name: Install additional tools
+      become: true
+      ansible.builtin.yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+          - "vim-enhanced"
+    - block:
+        - name: Get clickhouse distrib
+          ansible.builtin.get_url:
+            mode: 0644
+            url: "https://packages.clickhouse.com/rpm/stable/{{ item }}-{{ clickhouse_version }}.noarch.rpm"
+            dest: "./{{ item }}-{{ clickhouse_version }}.rpm"
+          with_items: "{{ clickhouse_packages }}"
+      rescue:
+        - name: Get clickhouse distrib
+          ansible.builtin.get_url:
+            mode: 0644
+            url: "https://packages.clickhouse.com/rpm/stable/clickhouse-common-static-{{ clickhouse_version }}.x86_64.rpm"
+            dest: "./clickhouse-common-static-{{ clickhouse_version }}.rpm"
+    - name: Check file exists "clickhouse-common-static"
+      ansible.builtin.stat:
+        path: clickhouse-common-static-{{ clickhouse_version }}.rpm
+      register: ch_common
+    - name: Check files exist "clickhouse-client"
+      ansible.builtin.stat:
+        path: clickhouse-client-{{ clickhouse_version }}.rpm
+      register: ch_client
+    - name: Check files exist "clickhouse-server"
+      ansible.builtin.stat:
+        path: clickhouse-server-{{ clickhouse_version }}.rpm
+      register: ch_server
+    - name: Install clickhouse packages
+      become: true
+      ansible.builtin.yum:
+        name:
+          - clickhouse-common-static-{{ clickhouse_version }}.rpm
+          - clickhouse-client-{{ clickhouse_version }}.rpm
+          - clickhouse-server-{{ clickhouse_version }}.rpm
+      when: ch_common.stat.exists and ch_client.stat.exists and ch_server.stat.exists
+    - name: Sending Clickhouse config
+      become: true
+      ansible.builtin.template:
+        mode: 0644
+        src: templates/clickhouse_config.xml
+        dest: /etc/clickhouse-server/config.xml
+      notify: restart-clickhouse-service
+    - name: Flush handlers (run all notified handlers)
+      ansible.builtin.meta: flush_handlers
+    - name: Create database
+      ansible.builtin.command: clickhouse-client -q 'CREATE DATABASE logs'
+      register: create_db
+      failed_when: create_db.rc != 0 and create_db.rc !=82
+      changed_when: create_db.rc == 0
+    - name: Create table
+      ansible.builtin.command: clickhouse-client -q 'CREATE TABLE logs.vector_logs ("message" String) ENGINE = Log'
+      register: create_table
+      failed_when: create_table.rc != 0 and create_table.rc !=57
+      changed_when: create_table.rc == 0
