@@ -1,0 +1,13 @@
+---
+- name: Apply Clickhouse role
+  hosts: clickhouse
+  roles:
+    - clickhouse_role
+- name: Apply Vector role
+  hosts: vector
+  roles:
+    - vector_role
+- name: Apply Lighthouse role
+  hosts: lighthouse
+  roles:
+    - lighthouse_role

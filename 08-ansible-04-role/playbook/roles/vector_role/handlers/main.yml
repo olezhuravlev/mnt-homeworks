@@ -1,0 +1,9 @@
+# handlers file for vector_role
+---
+- name: start-vector-systemd
+  become: true
+  ansible.builtin.systemd:
+    name: vector
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode

@@ -1,0 +1,52 @@
+---
+# tasks file for vector_role
+- name: Who is the current user?
+  ansible.builtin.debug:
+    msg: "{{ ansible_user_id }}"
+- name: Install additional tools
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+      - "vim-enhanced"
+- name: Downloading Vector distributives
+  ansible.builtin.get_url:
+    mode: 0644
+    url: "https://packages.timber.io/vector/latest/{{ vector_version }}.rpm"
+    dest: "/tmp/{{ vector_version }}.rpm"
+- name: Check file exists "vector"
+  ansible.builtin.stat:
+    path: /tmp/{{ vector_version }}.rpm
+  register: vector_stat
+- name: Install Vector packages
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+      - "/tmp/{{ vector_version }}.rpm"
+  when: vector_stat.stat.exists
+- name: Sending Vector config
+  become: true
+  ansible.builtin.template:
+    mode: 0644
+    src: templates/vector.yaml.j2
+    dest: "{{ vector_config_dest }}"
+    # owner: "{{ ansible_user_id }}"
+    # group: "{{ ansible_user_gid }}"
+    backup: true
+    validate: vector validate --no-environment --config-yaml %s
+- name: Create Vector systemd unit
+  become: true
+  ansible.builtin.template:
+    mode: 0644
+    src: templates/vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    # owner: "{{ ansible_user_id }}"
+    # group: "{{ ansible_user_gid }}"
+    backup: true
+  # changed_when: true # to always notify
+  notify: start-vector-systemd

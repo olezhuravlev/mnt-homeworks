@@ -54,22 +54,29 @@
           - clickhouse-client-{{ clickhouse_version }}.rpm
           - clickhouse-server-{{ clickhouse_version }}.rpm
       when: ch_common.stat.exists and ch_client.stat.exists and ch_server.stat.exists
-    - name: Sending Clickhouse config
+    - name: Copying Clickhouse config
       become: true
       ansible.builtin.template:
         mode: 0644
-        src: templates/clickhouse_config.xml
+        src: templates/clickhouse_config.xml.j2
         dest: /etc/clickhouse-server/config.xml
+      notify: restart-clickhouse-service
+    - name: Copying Clickhouse users
+      become: true
+      ansible.builtin.template:
+        mode: 0644
+        src: templates/clickhouse_users.xml.j2
+        dest: /etc/clickhouse-server/users.xml
       notify: restart-clickhouse-service
     - name: Flush handlers (run all notified handlers)
       ansible.builtin.meta: flush_handlers
     - name: Create database
-      ansible.builtin.command: clickhouse-client -q 'CREATE DATABASE logs'
+      ansible.builtin.command: clickhouse-client -q 'CREATE DATABASE vector_logs'
       register: create_db
       failed_when: create_db.rc != 0 and create_db.rc !=82
       changed_when: create_db.rc == 0
     - name: Create table
-      ansible.builtin.command: clickhouse-client -q 'CREATE TABLE logs.vector_logs ("message" String) ENGINE = Log'
+      ansible.builtin.command: clickhouse-client -q 'CREATE TABLE vector_logs.logs_messages ("message" String) ENGINE = Log'
       register: create_table
       failed_when: create_table.rc != 0 and create_table.rc !=57
       changed_when: create_table.rc == 0

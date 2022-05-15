@@ -41,7 +41,7 @@
 
 **4. Приготовьте свой собственный inventory файл `prod.yml`.**
 
-Готово: [prod.yml](./playbook/inventory/prod.yml)
+Готово (переименован в более понятный): [hosts.yml](./playbook/inventory/hosts.yml)
 
 **5. Запустите `ansible-lint site.yml` и исправьте ошибки, если они есть.**
 

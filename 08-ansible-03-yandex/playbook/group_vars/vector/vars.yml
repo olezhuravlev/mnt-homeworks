@@ -16,8 +16,8 @@ vector_config:
       inputs:
         - my_source_id
       endpoint: http://{{ clickhouse_host_ip }}:8123
-      database: logs
-      table: vector_logs
+      database: vector_logs
+      table: logs_messages
       acknowledgements: false
       compression: gzip
       encoding: default

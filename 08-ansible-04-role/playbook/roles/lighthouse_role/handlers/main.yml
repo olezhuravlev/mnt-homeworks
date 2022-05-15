@@ -1,0 +1,10 @@
+# handlers file for lighthouse_role
+---
+- name: start-nginx
+  become: true
+  ansible.builtin.command: "nginx"
+  when: not ansible_check_mode
+- name: reload-nginx
+  become: true
+  ansible.builtin.command: "nginx -s reload"
+  when: not ansible_check_mode

@@ -1,0 +1,70 @@
+# tasks file for lighthouse_role
+---
+- name: Who is the current user?
+  ansible.builtin.debug:
+    msg: "{{ ansible_user_id }}"
+- name: Install additional tools
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+      - "vim-enhanced"
+      - "unzip"
+      - "sed"
+- name: Install EPEL repo
+  become: true
+  ansible.builtin.yum:
+    name: epel-release
+    state: present
+- name: Install and launch nginx
+  become: true
+  ansible.builtin.yum:
+    name: nginx
+    state: present
+  when: not ansible_check_mode
+  notify: start-nginx
+- name: Create nginx config
+  become: true
+  ansible.builtin.template:
+    mode: 0644
+    src: templates/lighthouse_nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+- name: Get Lighthouse archive
+  become: true
+  ansible.builtin.get_url:
+    mode: 0644
+    url: "https://github.com/VKCOM/lighthouse/archive/refs/heads/master.zip"
+    dest: "./{{ lighthouse_archive }}.zip"
+- name: Check Lighthouse archive downloaded
+  become: true
+  ansible.builtin.stat:
+    path: "./{{ lighthouse_archive }}.zip"
+  register: lh_arch_exists
+- name: Creating destination directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ lighthouse_unzip_dir }}"
+    state: directory
+    mode: 0777
+- name: Unboxing Lighthouse
+  ansible.builtin.unarchive:
+    src: "./{{ lighthouse_archive }}.zip"
+    dest: "{{ lighthouse_unzip_dir }}"
+    remote_src: true
+  when: lh_arch_exists.stat.exists
+- name: Configure Lighthouse
+  become: true
+  ansible.builtin.template:
+    mode: 0644
+    src: templates/lighthouse.conf.j2
+    dest: /etc/nginx/conf.d/default.conf
+- name: Set Clickhouse Access Point
+  ansible.builtin.lineinfile:
+    path: "{{ lighthouse_clh_access_point_file }}"
+    regexp: "{{ lighthouse_clh_access_point_regexp }}"
+    line: "{{ lighthouse_clh_access_point }}"
+    firstmatch: true
+  when: not ansible_check_mode
+  notify: reload-nginx

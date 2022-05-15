@@ -128,16 +128,16 @@ handlers:
   ansible.builtin.meta: flush_handlers
 ````
 
-Выполнение двух SQL-запросов для создание базы данных с именем `logs` и таблицы в ней с
-именем `vector_logs` (таблица будет иметь единственную колонку `message` строкового типа):
+Выполнение двух SQL-запросов для создание базы данных с именем `vector_logs` и таблицы в ней с
+именем `logs_messages` (таблица будет иметь единственную колонку `message` строкового типа):
 ````
 - name: Create database
-  ansible.builtin.command: clickhouse-client -q 'CREATE DATABASE logs'
+  ansible.builtin.command: clickhouse-client -q 'CREATE DATABASE vector_logs'
   register: create_db
   failed_when: create_db.rc != 0 and create_db.rc !=82
   changed_when: create_db.rc == 0
 - name: Create table
-  ansible.builtin.command: clickhouse-client -q 'CREATE TABLE logs.vector_logs ("message" String) ENGINE = Log'
+  ansible.builtin.command: clickhouse-client -q 'CREATE TABLE vector_logs.logs_messages ("message" String) ENGINE = Log'
   register: create_table
   failed_when: create_table.rc != 0 and create_table.rc !=57
   changed_when: create_table.rc == 0
