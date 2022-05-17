@@ -1,0 +1,27 @@
+# defaults file for vector_role
+---
+#vector_host_ip: localhost
+vector_version: "vector-latest-1.x86_64"
+vector_config_dest: /etc/vector/vector2.yaml
+vector_config:
+  sources:
+    my_source_id:
+      type: file
+      acknowledgements: false
+      ignore_older_secs: 600
+      include:
+        - /var/log/**/*.log
+      read_from: beginning
+  sinks:
+    my_sink_id:
+      type: clickhouse
+      inputs:
+        - my_source_id
+      endpoint: http://{{ clickhouse_host_ip }}:8123
+      database: vector_logs
+      table: logs_messages
+      acknowledgements: false
+      compression: gzip
+      encoding: default
+      healthcheck: false
+      skip_unknown_fields: true

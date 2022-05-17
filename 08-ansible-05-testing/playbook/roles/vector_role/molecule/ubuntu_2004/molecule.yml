@@ -1,0 +1,20 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: ubuntu_2004
+    image: ubuntu:20.04
+    dockerfile: ./resources/Dockerfile
+    pre_build_image: false
+provisioner:
+  name: ansible
+  inventory:
+    group_vars:
+      all:
+        vector_host_ip: localhost
+        clickhouse_host_ip: localhost
+        lighthouse_host_ip: localhost
+verifier:
+  name: ansible

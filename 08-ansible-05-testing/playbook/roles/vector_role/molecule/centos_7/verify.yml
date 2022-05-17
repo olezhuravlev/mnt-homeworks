@@ -1,0 +1,24 @@
+---
+- name: Verify
+  hosts: all
+  gather_facts: false
+  tasks:
+  - name: Stat Vector config file
+    stat:
+      path: "/etc/vector/vector2.yaml"
+    register: file_config_stat
+  - name: Check if Vector config exists
+    assert:
+      that:
+        - file_config_stat.stat.exists == true
+  - name: Check Vector version
+    shell: "vector --version | cut -d ' ' -f2"
+    register: vector_ver
+  - name: Check Vector version
+    vars:
+      vector_ver_expected: "0.21.2"
+    assert:
+      that:
+        - vector_ver.stdout == vector_ver_expected
+      fail_msg: "Wrong version {{ vector_ver }} - must be {{ vector_ver_expected }}!"
+      success_msg: "Vector version {{ vector_ver.stdout }} is correct!"

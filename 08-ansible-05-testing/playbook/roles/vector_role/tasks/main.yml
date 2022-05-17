@@ -1,0 +1,99 @@
+---
+# tasks file for vector_role
+- name: Who is the current user?
+  ansible.builtin.debug:
+    msg: "{{ ansible_user_id }}"
+- name: What is ansible_virtualization_type?
+  ansible.builtin.debug:
+    msg: "{{ ansible_virtualization_type }}"
+- name: What is ansible_distribution?
+  ansible.builtin.debug:
+    msg: "{{ ansible_distribution }}"
+
+- name: Install additional tools (Centos)
+  become: true
+  ansible.builtin.yum:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+      - "vim-enhanced"
+  when:
+    - ansible_distribution == "CentOS"
+
+- name: Install additional tools (Ubuntu)
+  become: true
+  ansible.builtin.apt:
+    name: "{{ packages }}"
+    state: present
+  vars:
+    packages:
+      - "vim"
+      - "curl"
+  when:
+    - ansible_distribution == "Ubuntu"
+
+- name: Vector distributive installation (Centos)
+  block:
+  - name: What is vector_version?
+    ansible.builtin.debug:
+      msg: "{{ vector_version }}"
+  - name: Downloading RPM-archive (Centos)
+    ansible.builtin.get_url:
+      mode: 0644
+      url: "https://packages.timber.io/vector/latest/{{ vector_version }}.rpm"
+      dest: "/tmp/{{ vector_version }}.rpm"
+  - name: Check file exists "vector" (Centos)
+    ansible.builtin.stat:
+      path: /tmp/{{ vector_version }}.rpm
+    register: vector_stat
+  - name: Install Vector packages from RPM-archive (Centos)
+    become: true
+    ansible.builtin.yum:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+        - "/tmp/{{ vector_version }}.rpm"
+  when:
+    - not ansible_check_mode
+    - ansible_distribution == "CentOS"
+
+- name: Vector distributive installation (Ubuntu)
+  block:
+  - name: What is vector_version?
+    ansible.builtin.debug:
+      msg: "{{ vector_version }}"
+  - name: Repository installation (Ubuntu)
+    become: true
+    ansible.builtin.shell: curl -1sLf "https://repositories.timber.io/public/vector/cfg/setup/bash.deb.sh" | sudo -E bash
+    changed_when: false
+  - name: Install Vector packages from repository (Ubuntu)
+    become: true
+    ansible.builtin.apt:
+      name: vector
+  when:
+    - not ansible_check_mode
+    - ansible_distribution == "Ubuntu"
+
+- name: Sending Vector config
+  become: true
+  ansible.builtin.template:
+    mode: 0644
+    src: templates/vector.yaml.j2
+    dest: "{{ vector_config_dest }}"
+    # owner: "{{ ansible_user_id }}"
+    # group: "{{ ansible_user_gid }}"
+    backup: true
+    validate: vector validate --no-environment --config-yaml %s
+- name: Create Vector systemd unit
+  become: true
+  ansible.builtin.template:
+    mode: 0644
+    src: templates/vector.service.j2
+    dest: /etc/systemd/system/vector.service
+    # owner: "{{ ansible_user_id }}"
+    # group: "{{ ansible_user_gid }}"
+    backup: true
+  # changed_when: true # to always notify
+  notify: start-vector-systemd
