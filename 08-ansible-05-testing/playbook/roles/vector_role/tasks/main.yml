@@ -3,9 +3,11 @@
 - name: Who is the current user?
   ansible.builtin.debug:
     msg: "{{ ansible_user_id }}"
+
 - name: What is ansible_virtualization_type?
   ansible.builtin.debug:
     msg: "{{ ansible_virtualization_type }}"
+
 - name: What is ansible_distribution?
   ansible.builtin.debug:
     msg: "{{ ansible_distribution }}"
