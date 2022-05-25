@@ -9,3 +9,4 @@
   when:
     - not ansible_check_mode
     - ansible_virtualization_type != "docker"
+    - ansible_virtualization_type != "kvm"

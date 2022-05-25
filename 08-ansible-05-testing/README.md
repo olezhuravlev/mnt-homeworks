@@ -652,33 +652,482 @@ INFO     Verifier completed successfully.
 
 **5. Добавьте новый тег на коммит с рабочим сценарием в соответствии с семантическим версионированием.**
 
-Пушим в репозиторий с ролью но с новым тегом.
-1.1.0
-
-[Готово]()
-
+[Готово](https://github.com/olezhuravlev/mnt-homeworks/tree/MNT-13/08-ansible-05-testing).
 
 ### Tox
 
-1. Добавьте в директорию с vector-role файлы из [директории](./example)
-2. Запустите `docker run --privileged=True -v <path_to_repo>:/opt/vector-role -w /opt/vector-role -it <image_name> /bin/bash`, где path_to_repo - путь до корня репозитория с vector-role на вашей файловой системе.
-3. Внутри контейнера выполните команду `tox`, посмотрите на вывод.
-4. Добавьте файл `tox.ini` в корень репозитория каждой своей роли.
-5. Создайте облегчённый сценарий для `molecule`. Проверьте его на исполнимость.
-6. Пропишите правильную команду в `tox.ini` для того чтобы запускался облегчённый сценарий.
-7. Запустите `docker` контейнер так, чтобы внутри оказались обе ваши роли.
-8. Зайдти поочерёдно в каждую из них и запустите команду `tox`. Убедитесь, что всё отработало успешно.
+**1. Добавьте в директорию с vector-role файлы из [директории](./example)**
+
+Готово [здесь](playbook/roles/vector_role/tox.ini) и [здесь](playbook/roles/vector_role/tox-requirements.txt).
+
+**2. Запустите `docker run --privileged=True -v <path_to_repo>:/opt/vector-role -w /opt/vector-role -it <image_name> /bin/bash`, где path_to_repo - путь до корня репозитория с vector-role на вашей файловой системе.**
+
+Помимо того, что предложенный [Dockerfile](./Dockerfile) некорректен и на его основе нельзя собрать
+образ, мы еще не будем привыкать к [плохому](https://jpetazzo.github.io/2015/09/03/do-not-use-docker-in-docker-for-ci/)
+и использовать привилегированный режим, а просто воспользуемся ранее подготовленным [образом](./Dockerfile_Centos7) и
+запустим его, передавая в него сокет демона Docker:
+````
+$ docker run -it \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles:/opt/playbook/roles \
+    -w /opt/playbook/roles/vector_role \
+    --name centos7_testroles centos7_testroles /bin/bash
+````
+
+Обращаем внимание, что в контейнер монтируется целиком папка [roles](./playbook/roles), чтобы
+впоследствии иметь доступ ко всем ролям.
+
+Таким образом, новые контейнеры будут создаваться не внутри этого контейнера, а "рядом" с ним.
+
+**3. Внутри контейнера выполните команду `tox`, посмотрите на вывод.**
+
+Инициируем тестирование командой `tox` и наблюдаем, как "Tox" пытается устанавливать недостающие
+инструменты и выполнять сценарий `centos_7` (команда `molecule test -s centos_7`)
+на [разных версиях](./Dockerfile_Centos7) виртуального окружения Python:
+
+````
+[root@4e6185491dc2 vector-role]# tox
+py37-ansible210 recreate: /opt/vector-role/.tox/py37-ansible210
+py37-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py37-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==1.0.0,ansible-lint==5.1.3,arrow==1.2.2,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,cached-property==1.5.2,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,importlib-metadata==4.11.4,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,typing_extensions==4.2.0,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3,zipp==3.8.0
+py37-ansible210 run-test-pre: PYTHONHASHSEED='2747155523'
+py37-ansible210 run-test: commands[0] | molecule test -s centos_7 --destroy always
+INFO     centos_7 scenario test matrix: dependency, lint, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy
+INFO     Performing prerun...
+WARNING  Failed to guess project directory using git: 
+...
+CRITICAL Lint failed with error code 1
+WARNING  An error occurred during the test sequence action: 'lint'. Cleaning up.
+...
+PLAY [Destroy] *****************************************************************
+...
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     Pruning extra files from scenario ephemeral directory
+ERROR: InvocationError for command /opt/vector-role/.tox/py37-ansible210/bin/molecule test -s centos_7 --destroy always (exited with code 1)
+py37-ansible30 recreate: /opt/vector-role/.tox/py37-ansible30
+py37-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py37-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==1.0.0,ansible-lint==5.1.3,arrow==1.2.2,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,cached-property==1.5.2,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,importlib-metadata==4.11.4,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,typing_extensions==4.2.0,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3,zipp==3.8.0
+py37-ansible30 run-test-pre: PYTHONHASHSEED='2747155523'
+py37-ansible30 run-test: commands[0] | molecule test -s centos_7 --destroy always
+INFO     centos_7 scenario test matrix: dependency, lint, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy
+INFO     Performing prerun...
+WARNING  Failed to guess project directory using git: 
+...
+CRITICAL Lint failed with error code 1
+WARNING  An error occurred during the test sequence action: 'lint'. Cleaning up.
+...
+PLAY [Destroy] *****************************************************************
+...
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     Pruning extra files from scenario ephemeral directory
+ERROR: InvocationError for command /opt/vector-role/.tox/py37-ansible30/bin/molecule test -s centos_7 --destroy always (exited with code 1)
+py39-ansible210 recreate: /opt/vector-role/.tox/py39-ansible210
+py39-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py39-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==2.1.0,ansible-lint==5.1.3,arrow==1.2.2,attrs==21.4.0,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,jsonschema==4.5.1,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,pyrsistent==0.18.1,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3
+py39-ansible210 run-test-pre: PYTHONHASHSEED='2747155523'
+py39-ansible210 run-test: commands[0] | molecule test -s centos_7 --destroy always
+INFO     centos_7 scenario test matrix: dependency, lint, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy
+INFO     Performing prerun...
+WARNING  Failed to guess project directory using git: 
+...
+CRITICAL Lint failed with error code 1
+WARNING  An error occurred during the test sequence action: 'lint'. Cleaning up.
+...
+PLAY [Destroy] *****************************************************************
+...
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     Pruning extra files from scenario ephemeral directory
+ERROR: InvocationError for command /opt/vector-role/.tox/py39-ansible210/bin/molecule test -s centos_7 --destroy always (exited with code 1)
+py39-ansible30 recreate: /opt/vector-role/.tox/py39-ansible30
+py39-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py39-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==2.1.0,ansible-lint==5.1.3,arrow==1.2.2,attrs==21.4.0,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,jsonschema==4.5.1,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,pyrsistent==0.18.1,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3
+py39-ansible30 run-test-pre: PYTHONHASHSEED='2747155523'
+py39-ansible30 run-test: commands[0] | molecule test -s centos_7 --destroy always
+INFO     centos_7 scenario test matrix: dependency, lint, cleanup, destroy, syntax, create, prepare, converge, idempotence, side_effect, verify, cleanup, destroy
+INFO     Performing prerun...
+WARNING  Failed to guess project directory using git: 
+...
+CRITICAL Lint failed with error code 1
+WARNING  An error occurred during the test sequence action: 'lint'. Cleaning up.
+...
+PLAY [Destroy] *****************************************************************
+...
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     Pruning extra files from scenario ephemeral directory
+ERROR: InvocationError for command /opt/vector-role/.tox/py39-ansible30/bin/molecule test -s centos_7 --destroy always (exited with code 1)
+_________________________________________ summary __________________________________________________
+ERROR:   py37-ansible210: commands failed
+ERROR:   py37-ansible30: commands failed
+ERROR:   py39-ansible210: commands failed
+ERROR:   py39-ansible30: commands failed
+````
+
+Как видим, выполнение сценария `centos_7` производилось в 4-х разных виртуальных окружениях
+и сопровождалось множеством ошибок, с каждой из которых следует разбираться отдельно.
+
+**4. Добавьте файл `tox.ini` в корень репозитория каждой своей роли.**
+
+Воу-воу... Добавим позже, сначала настроим сценарий на использование нужной роли.
+
+**5. Создайте облегчённый сценарий для `molecule`. Проверьте его на исполнимость.**
+
+Создадим сценарий с именем [`compatibility`](./playbook/roles/vector_role/molecule/compatibility):
+````
+$ molecule init scenario compatibility --driver-name docker
+````
+
+Пусть этот [сценарий](./playbook/roles/vector_role/molecule/compatibility/molecule.yml) выполняет
+только следующие стадии тестирования - `destroy`, `create`, `converge` и опять `destroy`.
+
+Проверим работоспособность этого сценария с помощью "Molecule":
+````
+$ molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.vector_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+
+PLAY [Destroy] *****************************************************************
+
+TASK [Destroy molecule instance(s)] ********************************************
+changed: [localhost] => (item=centos_7)
+
+TASK [Wait for instance(s) deletion to complete] *******************************
+FAILED - RETRYING: [localhost]: Wait for instance(s) deletion to complete (300 retries left).
+ok: [localhost] => (item=centos_7)
+
+TASK [Delete docker networks(s)] ***********************************************
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     Running compatibility > create
+
+PLAY [Create] ******************************************************************
+
+TASK [Log into a Docker registry] **********************************************
+skipping: [localhost] => (item=None) 
+skipping: [localhost]
+
+TASK [Check presence of custom Dockerfiles] ************************************
+ok: [localhost] => (item={'image': 'centos7_testroles:latest', 'name': 'centos_7', 'pre_build_image': True})
+
+TASK [Create Dockerfiles from image names] *************************************
+skipping: [localhost] => (item={'image': 'centos7_testroles:latest', 'name': 'centos_7', 'pre_build_image': True}) 
+
+TASK [Discover local Docker images] ********************************************
+ok: [localhost] => (item={'changed': False, 'skipped': True, 'skip_reason': 'Conditional result was False', 'item': {'image': 'centos7_testroles:latest', 'name': 'centos_7', 'pre_build_image': True}, 'ansible_loop_var': 'item', 'i': 0, 'ansible_index_var': 'i'})
+
+TASK [Build an Ansible compatible image (new)] *********************************
+skipping: [localhost] => (item=molecule_local/centos7_testroles:latest) 
+
+TASK [Create docker network(s)] ************************************************
+
+TASK [Determine the CMD directives] ********************************************
+ok: [localhost] => (item={'image': 'centos7_testroles:latest', 'name': 'centos_7', 'pre_build_image': True})
+
+TASK [Create molecule instance(s)] *********************************************
+changed: [localhost] => (item=centos_7)
+
+TASK [Wait for instance(s) creation to complete] *******************************
+FAILED - RETRYING: [localhost]: Wait for instance(s) creation to complete (300 retries left).
+changed: [localhost] => (item={'failed': 0, 'started': 1, 'finished': 0, 'ansible_job_id': '470555601297.574216', 'results_file': '/home/oleg/.ansible_async/470555601297.574216', 'changed': True, 'item': {'image': 'centos7_testroles:latest', 'name': 'centos_7', 'pre_build_image': True}, 'ansible_loop_var': 'item'})
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=5    changed=2    unreachable=0    failed=0    skipped=4    rescued=0    ignored=0
+
+INFO     Running compatibility > converge
+
+PLAY [Converge] ****************************************************************
+
+TASK [Gathering Facts] *********************************************************
+ok: [centos_7]
+
+TASK [Include vector_role] *****************************************************
+
+TASK [vector_role : Who is the current user?] **********************************
+ok: [centos_7] => {
+    "msg": "root"
+}
+
+TASK [vector_role : What is ansible_virtualization_type?] **********************
+ok: [centos_7] => {
+    "msg": "docker"
+}
+
+TASK [vector_role : What is ansible_distribution?] *****************************
+ok: [centos_7] => {
+    "msg": "CentOS"
+}
+
+TASK [vector_role : Install additional tools (Centos)] *************************
+ok: [centos_7]
+
+TASK [vector_role : Install additional tools (Ubuntu)] *************************
+skipping: [centos_7]
+
+TASK [vector_role : What is vector_version?] ***********************************
+ok: [centos_7] => {
+    "msg": "vector-latest-1.x86_64"
+}
+
+TASK [vector_role : Downloading RPM-archive (Centos)] **************************
+changed: [centos_7]
+
+TASK [vector_role : Check file exists "vector" (Centos)] ***********************
+ok: [centos_7]
+
+TASK [vector_role : Install Vector packages from RPM-archive (Centos)] *********
+changed: [centos_7]
+
+TASK [vector_role : What is vector_version?] ***********************************
+skipping: [centos_7]
+
+TASK [vector_role : Repository installation (Ubuntu)] **************************
+skipping: [centos_7]
+
+TASK [vector_role : Install Vector packages from repository (Ubuntu)] **********
+skipping: [centos_7]
+
+TASK [vector_role : Sending Vector config] *************************************
+changed: [centos_7]
+
+TASK [vector_role : Create Vector systemd unit] ********************************
+changed: [centos_7]
+
+RUNNING HANDLER [vector_role : start-vector-systemd] ***************************
+skipping: [centos_7]
+
+PLAY RECAP *********************************************************************
+centos_7                   : ok=11   changed=4    unreachable=0    failed=0    skipped=5    rescued=0    ignored=0
+
+INFO     Running compatibility > destroy
+
+PLAY [Destroy] *****************************************************************
+
+TASK [Destroy molecule instance(s)] ********************************************
+changed: [localhost] => (item=centos_7)
+
+TASK [Wait for instance(s) deletion to complete] *******************************
+FAILED - RETRYING: [localhost]: Wait for instance(s) deletion to complete (300 retries left).
+FAILED - RETRYING: [localhost]: Wait for instance(s) deletion to complete (299 retries left).
+changed: [localhost] => (item=centos_7)
+
+TASK [Delete docker networks(s)] ***********************************************
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=2    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+INFO     Pruning extra files from scenario ephemeral directory
+````
+
+Как видим, сценарий отрабатывает успешно.
+
+**6. Пропишите правильную команду в `tox.ini` для того чтобы запускался облегчённый сценарий.**
+
+[Готово](./playbook/roles/vector_role/tox.ini).
+
+**7. Запустите `docker` контейнер так, чтобы внутри оказались обе ваши роли.**
+
+Т.к. мы монтировали в контейнер целиком папку [roles](./playbook/roles), то у нас и так все роли
+доступны из контейнера.
+
+**8. Зайдите поочерёдно в каждую из них и запустите команду `tox`. Убедитесь, что всё отработало успешно.**
+
+> К сожалению, по невыясненным причинам "Tox" отказывается разворачивать виртуальные окружения в
+> контейнерах Docker, несмотря на то, что запуск этих же сценариев с помощью "Molecule" в этих же
+> контейнерах происходит без проблем. Разбор причин такого поведения "Tox" находится за
+> пределами текущей темы.
+> 
+> Как следствие, дальнейший запуск сценариев через "Tox" мы будем проводить на локальной машине.
+
+Запускаем команду `tox` для роли [vector-role](./playbook/roles/vector_role).
+
+````
+$ tox   
+py37-ansible210 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/vector_role/.tox/py37-ansible210
+py37-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py37-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==1.0.0,ansible-lint==5.1.3,arrow==1.2.2,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,cached-property==1.5.2,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,importlib-metadata==4.11.4,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,typing_extensions==4.2.0,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3,zipp==3.8.0
+py37-ansible210 run-test-pre: PYTHONHASHSEED='786158019'
+py37-ansible210 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.vector_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+py37-ansible30 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/vector_role/.tox/py37-ansible30
+py37-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py37-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==1.0.0,ansible-lint==5.1.3,arrow==1.2.2,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,cached-property==1.5.2,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,importlib-metadata==4.11.4,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,typing_extensions==4.2.0,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3,zipp==3.8.0
+py37-ansible30 run-test-pre: PYTHONHASHSEED='786158019'
+py37-ansible30 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.vector_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+py39-ansible210 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/vector_role/.tox/py39-ansible210
+py39-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py39-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==2.1.0,ansible-lint==5.1.3,arrow==1.2.2,attrs==21.4.0,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,jsonschema==4.5.1,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,pyrsistent==0.18.1,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3
+py39-ansible210 run-test-pre: PYTHONHASHSEED='786158019'
+py39-ansible210 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.vector_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+py39-ansible30 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/vector_role/.tox/py39-ansible30
+py39-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py39-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==2.1.0,ansible-lint==5.1.3,arrow==1.2.2,attrs==21.4.0,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,jsonschema==4.5.1,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,pyrsistent==0.18.1,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3
+py39-ansible30 run-test-pre: PYTHONHASHSEED='786158019'
+py39-ansible30 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.vector_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+______________________________________ summary _____________________________________________________
+  py37-ansible210: commands succeeded
+  py37-ansible30: commands succeeded
+  py39-ansible210: commands succeeded
+  py39-ansible30: commands succeeded
+  congratulations :)
+````
+
+Роль [vector_role](./playbook/roles/vector_role) успешно отработала во всех окружениях.
+
+Теперь скопируем наш облегченный сценарий в папку роли [lighthouse_role](./playbook/roles/lighthouse_role),
+а также скопируем туда файлы [tox.ini](./playbook/roles/lighthouse_role/tox.ini) и
+[tox-requirements.txt](./playbook/roles/lighthouse_role/tox-requirements.txt). Кроме того,
+в файле [converge.yml](./playbook/roles/lighthouse_role/molecule/compatibility/converge.yml) не
+забудем поменять указание на текущую роль.
+
+Запускаем "Tox" для роли  [lighthouse_role](./playbook/roles/lighthouse_role):
+````
+$ tox 
+py37-ansible210 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/lighthouse_role/.tox/py37-ansible210
+py37-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py37-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==1.0.0,ansible-lint==5.1.3,arrow==1.2.2,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,cached-property==1.5.2,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,importlib-metadata==4.11.4,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,typing_extensions==4.2.0,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3,zipp==3.8.0
+py37-ansible210 run-test-pre: PYTHONHASHSEED='1446984632'
+py37-ansible210 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.lighthouse_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+py37-ansible30 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/lighthouse_role/.tox/py37-ansible30
+py37-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py37-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==1.0.0,ansible-lint==5.1.3,arrow==1.2.2,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,cached-property==1.5.2,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,importlib-metadata==4.11.4,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,typing_extensions==4.2.0,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3,zipp==3.8.0
+py37-ansible30 run-test-pre: PYTHONHASHSEED='1446984632'
+py37-ansible30 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.lighthouse_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+py39-ansible210 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/lighthouse_role/.tox/py39-ansible210
+py39-ansible210 installdeps: -rtox-requirements.txt, ansible<3.0
+py39-ansible210 installed: ansible==2.10.7,ansible-base==2.10.17,ansible-compat==2.1.0,ansible-lint==5.1.3,arrow==1.2.2,attrs==21.4.0,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,jsonschema==4.5.1,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,pyrsistent==0.18.1,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3
+py39-ansible210 run-test-pre: PYTHONHASHSEED='1446984632'
+py39-ansible210 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.lighthouse_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+py39-ansible30 create: /home/oleg/mnt-homeworks/08-ansible-05-testing/playbook/roles/lighthouse_role/.tox/py39-ansible30
+py39-ansible30 installdeps: -rtox-requirements.txt, ansible<3.1
+py39-ansible30 installed: ansible==3.0.0,ansible-base==2.10.17,ansible-compat==2.1.0,ansible-lint==5.1.3,arrow==1.2.2,attrs==21.4.0,bcrypt==3.2.2,binaryornot==0.4.4,bracex==2.3,Cerberus==1.3.2,certifi==2022.5.18.1,cffi==1.15.0,chardet==4.0.0,charset-normalizer==2.0.12,click==8.1.3,click-help-colors==0.9.1,commonmark==0.9.1,cookiecutter==1.7.3,cryptography==37.0.2,distro==1.7.0,docker==5.0.3,enrich==1.2.7,idna==3.3,Jinja2==3.1.2,jinja2-time==0.2.0,jmespath==1.0.0,jsonschema==4.5.1,lxml==4.8.0,MarkupSafe==2.1.1,molecule==3.4.0,molecule-docker==1.1.0,packaging==21.3,paramiko==2.11.0,pathspec==0.9.0,pluggy==0.13.1,poyo==0.5.0,pycparser==2.21,Pygments==2.12.0,PyNaCl==1.5.0,pyparsing==3.0.9,pyrsistent==0.18.1,python-dateutil==2.8.2,python-slugify==6.1.2,PyYAML==5.4.1,requests==2.27.1,rich==12.4.4,ruamel.yaml==0.17.21,ruamel.yaml.clib==0.2.6,selinux==0.2.1,six==1.16.0,subprocess-tee==0.3.5,tenacity==8.0.1,text-unidecode==1.3,urllib3==1.26.9,wcmatch==8.3,websocket-client==1.3.2,yamllint==1.26.3
+py39-ansible30 run-test-pre: PYTHONHASHSEED='1446984632'
+py39-ansible30 run-test: commands[0] | molecule test -s compatibility --destroy always
+INFO     compatibility scenario test matrix: destroy, create, converge, destroy
+INFO     Performing prerun...
+INFO     Guessed /home/oleg/mnt-homeworks as project root directory
+INFO     Using /home/oleg/.cache/ansible-lint/fc2276/roles/olezhuravlev.lighthouse_role symlink to current repository in order to enable Ansible to find the role using its expected full name.
+INFO     Added ANSIBLE_ROLES_PATH=~/.ansible/roles:/usr/share/ansible/roles:/etc/ansible/roles:/home/oleg/.cache/ansible-lint/fc2276/roles
+INFO     Running compatibility > destroy
+INFO     Sanity checks: 'docker'
+...
+INFO     Pruning extra files from scenario ephemeral directory
+______________________________________ summary _____________________________________________________
+  py37-ansible210: commands succeeded
+  py37-ansible30: commands succeeded
+  py39-ansible210: commands succeeded
+  py39-ansible30: commands succeeded
+  congratulations :)
+````
+
+Как видим, для роли [lighthouse_role](./playbook/roles/lighthouse_role) тестирование также прошло успешно.
+
+
 9. Добавьте новый тег на коммит с рабочим сценарием в соответствии с семантическим версионированием.
 
-После выполнения у вас должно получится два сценария molecule и один tox.ini файл в репозитории. Ссылка на репозиторий являются ответами на домашнее задание. Не забудьте указать в ответе теги решений Tox и Molecule заданий.
+[Всё решение](https://github.com/olezhuravlev/mnt-homeworks/tree/MNT-13/08-ansible-05-testing).
+
+[Коммит с выполненным заданием по Molecule](https://github.com/olezhuravlev/mnt-homeworks/commit/31ed04dd750ec0b05e1b607cd6f577dc91d2e5b8) и к нему [тег 1.2.0](https://github.com/olezhuravlev/mnt-homeworks/releases/tag/1.2.0).
+
+[Коммит с выполненным заданием по Tox](https://github.com/olezhuravlev/mnt-homeworks/commit/273c491c5cb5071f4f9988b5c94c1c1c6aaadcdf) и к нему [тег 1.3.0](https://github.com/olezhuravlev/mnt-homeworks/releases/tag/1.3.0).
+
 
 ## Необязательная часть
 
-1. Проделайте схожие манипуляции для создания роли lighthouse.
-2. Создайте сценарий внутри любой из своих ролей, который умеет поднимать весь стек при помощи всех ролей.
-3. Убедитесь в работоспособности своего стека. Создайте отдельный verify.yml, который будет проверять работоспособность интеграции всех инструментов между ними.
-4. Выложите свои roles в репозитории. В ответ приведите ссылки.
+**1. Проделайте схожие манипуляции для создания роли lighthouse.**
 
+Уже сделано в задании №8.
+
+**2. Создайте сценарий внутри любой из своих ролей, который умеет поднимать весь стек при помощи всех ролей.**
+
+Здесь следует уточнить, что поднятие стека должно осуществляться командой
+`molecule converge -s <Имя сценария>`.
+
+**3. Убедитесь в работоспособности своего стека. Создайте отдельный verify.yml, который будет проверять работоспособность интеграции всех инструментов между ними.**
+
+**4. Выложите свои roles в репозитории. В ответ приведите ссылки.**
+
+| Назначение                     | Github-репозиторий                                                                       | Реестр Ansible Galaxy                                   |
+|--------------------------------|------------------------------------------------------------------------------------------|---------------------------------------------------------|
+| Роль Vector                    | https://github.com/olezhuravlev/vector-role                                              | https://galaxy.ansible.com/olezhuravlev/vector_role     |
+| Роль Clickhouse (доработанная) | https://github.com/olezhuravlev/clickhouse-role                                          | https://galaxy.ansible.com/olezhuravlev/clickhouse_role |
+| Роль Lighthouse                | https://github.com/olezhuravlev/lighthouse-role                                          | https://galaxy.ansible.com/olezhuravlev/lighthouse_role |
+| playbook                       | https://github.com/olezhuravlev/mnt-homeworks/tree/MNT-13/08-ansible-05-testing/playbook |                                                         |
 
 ---
 
