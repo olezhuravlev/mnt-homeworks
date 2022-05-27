@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  tasks:
+    - import_role:
+        name: my_namespace.my_collection.my_role
+      vars:
+        path_default: /home/oleg/mnt-homeworks/08-ansible-06-module/from_collection.txt
+        content_default: "Hello world from collection!"

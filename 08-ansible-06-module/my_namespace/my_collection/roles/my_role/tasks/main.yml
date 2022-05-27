@@ -1,0 +1,5 @@
+---
+- name: Copy file task
+  my_own_module:
+    path: "{{ path_default }}"
+    content: "{{ content_default }}"

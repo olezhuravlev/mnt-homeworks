@@ -1,4 +1,4 @@
-# Домашнее задание к занятию "08.04 Создание собственных modules"
+# Домашнее задание к занятию "08.06 Создание собственных modules"
 
 ## Подготовка к выполнению
 1. Создайте пустой публичных репозиторий в любом своём проекте: `my_own_collection`
@@ -182,8 +182,299 @@ if __name__ == '__main__':
 
 ---
 
-### Как оформить ДЗ?
+### Решение
 
-Выполненное домашнее задание пришлите ссылкой на .md-файл в вашем репозитории.
+1. В виртуальном окружении создать новый `my_own_module.py` файл
+2. Наполнить его содержимым:
+3. Заполните файл в соответствии с требованиями ansible так, чтобы он выполнял основную задачу: module должен создавать текстовый файл на удалённом хосте по пути, определённом в параметре `path`, с содержимым, определённым в параметре `content`.
+
+Реализована несложная процедура, позволяющая
+создавать файл (вместе с родительскими директориями) и размещать в нём предложенный текст:
+````python
+def create_file(file_path, content, result):
+  """
+  Creates file in designated path with provided content.
+
+  :param path: path to the file;
+  :param content: content to write into created file;
+  :param result: dict for writing result of the operation;
+  :return: True if file has been successfully written, False otherwise.
+  """
+  if not check_file_needs_update(file_path, content):
+    result['changed'] = False
+    result['message'] = "File is actual"
+    return False
+
+  try:
+    basepath, filename = ntpath.split(file_path)
+    Path(basepath).mkdir(parents=True, exist_ok=True)
+    with open(file_path, 'w') as f:
+      f.write(content)
+      # abspath = os.path.abspath(f)
+      real_path = os.path.realpath(f.name)
+    result['changed'] = True
+    result['message'] = "File written to path {0}".format(real_path)
+    return True
+  except Exception as e:
+    result['changed'] = False
+    result['message'] = "Error: {0}".format(e)
+    return False
+  
+def check_file_needs_update(file_path, content):
+  """
+  Checks if file exists and has specified content.
+
+  :param file_path: path to the file;
+  :param content: content to check in the file for exact match;
+  :return: True if file needs to be updated.
+  """
+  if not path.exists(file_path):
+    return True
+
+  # Check file has the same content (the file is one-line!).
+  with open(file_path, 'r') as f:
+    data = f.read().rstrip()
+    if data == content:
+      return False
+    else:
+      return True
+````
+
+Алгоритм реализован так, что для обеспечения принципа идемпотентности файл создаётся и
+модифицируется только в том случае, если его еще нет или его содержимое отлично от требуемого.
+
+4. Проверьте module на исполняемость локально.
+
+Создаём и заполняем файл с параметрами `payload.json`:
+````
+{
+  "ANSIBLE_MODULE_ARGS": {
+    "path": "/home/oleg/mnt-homeworks/08-ansible-06-module/from_payload.txt",
+    "content": "Hello world!"
+  }
+}
+````
+
+Затем, находясь в папке с этим файлом, запускаем модуль:
+````
+$ python -m ansible.modules.my_own_module payload.json
+
+{"changed": true, "message": "File written to path /home/oleg/mnt-homeworks/08-ansible-06-module/from_payload.txt",
+ "invocation": {"module_args": {"path": "/home/oleg/mnt-homeworks/08-ansible-06-module/from_payload.txt", "content": "Hello world!"}}}
+````
+
+Запустим процедуру повторно, чтобы проверить, что при повторном запуске файл не изменяется
+(это необходимо для реализации принципа идемпотентности):
+````
+$ python -m ansible.modules.my_own_module payload.json
+
+{"changed": false, "message": "File is actual",
+ "invocation": {"module_args": {"path": "/home/oleg/mnt-homeworks/08-ansible-06-module/from_payload.txt", "content": "Hello world!"}}}
+````
+
+5. Напишите single task playbook и используйте module в нём.
+
+Создаём файл `site.yaml`:
+````
+---
+- name: Copy file test module
+  hosts: localhost
+  tasks:
+    - name: Copy file task
+      my_own_module:
+        path: /home/oleg/mnt-homeworks/08-ansible-06-module/from_site.txt
+        content: "Hello world!"
+````
+
+Затем, находясь в папке с этим файлом, запускаем `ansible-playbook` (с выводом сообщений):
+
+````
+$ ansible-playbook site.yaml -v
+[WARNING]: You are running the development version of Ansible. You should only run Ansible from "devel" if you are modifying the Ansible engine, or trying out features under development. This is a rapidly changing source of code
+and can become unstable at any point.
+Using /etc/ansible/ansible.cfg as config file
+[WARNING]: No inventory was parsed, only implicit localhost is available
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+
+PLAY [Copy file test module] **********************************************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] ****************************************************************************************************************************************************************************************************************
+ok: [localhost]
+
+TASK [Copy file task] *****************************************************************************************************************************************************************************************************************
+changed: [localhost] => {"changed": true, "message": "File written to path /home/oleg/mnt-homeworks/08-ansible-06-module/from_site.txt"}
+
+PLAY RECAP ****************************************************************************************************************************************************************************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+````
+
+6. Проверьте через playbook на идемпотентность.
+
+Запустим ту же задачу повторно:
+````
+$ ansible-playbook site.yaml -v
+[WARNING]: You are running the development version of Ansible. You should only run Ansible from "devel" if you are modifying the Ansible engine, or trying out features under development. This is a rapidly changing source of code
+and can become unstable at any point.
+Using /etc/ansible/ansible.cfg as config file
+[WARNING]: No inventory was parsed, only implicit localhost is available
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+
+PLAY [Copy file test module] **********************************************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] ****************************************************************************************************************************************************************************************************************
+ok: [localhost]
+
+TASK [Copy file task] *****************************************************************************************************************************************************************************************************************
+ok: [localhost] => {"changed": false, "message": "File is actual"}
+
+PLAY RECAP ****************************************************************************************************************************************************************************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+````
+
+Как видим, повторный вызов процедуры не вызвал изменений в конфигурации, т.е. задача удовлетворяет
+правилу идемпотентности.
+
+7. Выйдите из виртуального окружения.
+
+Вышли.
+
+8. Инициализируйте новую collection: `ansible-galaxy collection init my_own_namespace.yandex_cloud_elk`
+
+Находясь в корневой папке проекта выполним инициализацию коллекции с именем `my_collection` в пространстве имен `my_namespace`:
+````
+$ ansible-galaxy collection init my_namespace.my_collection                
+- Collection my_namespace.my_collection was created successfully
+````
+
+9. В данную collection перенесите свой module в соответствующую директорию.
+
+В папке `plugins` создаём папку `modules` и целиком копируем туда файл
+[my_own_module.py](./my_namespace/my_collection/plugins/modules/my_own_module.py).
+
+В самом модуле ничего менять не нужно.
+
+10. Single task playbook преобразуйте в single task role и перенесите в collection. У role должны быть default всех параметров module
+
+В папке [коллекции](./my_namespace/my_collection) создаём папку
+[roles](./my_namespace/my_collection/roles) и, перейдя в неё, инициализируем роль с именем "[my_role](./my_namespace/my_collection/roles/my_role)":
+````
+$ ansible-galaxy role init my_role                         
+- Role my_role was created successfully
+````
+
+Для преобразования нашего playbook из задания №5 в форму роли достаточно скопировать задачи из этого
+файла в файл [tasks/main.yml](./my_namespace/my_collection/roles/my_role/tasks/main.yml).
+
+Помимо этого для созданной роли следует указать
+[дефолтные значения параметров](./my_namespace/my_collection/roles/my_role/defaults/main.yml).
+
+11. Создайте playbook для использования этой role.
+
+В корневой папке проекта создадим директорию [playbook](./playbook) и разместим в неё файл
+[site.yml](./playbook/site.yml) с незамысловатым содержимым:
+````
+---
+- hosts: localhost
+  tasks:
+    - import_role:
+        name: my_namespace.my_collection.my_role
+      vars:
+        path_default: /home/oleg/mnt-homeworks/08-ansible-06-module/from_collection.txt
+        content_default: "Hello world from collection!"
+````
+
+12. Заполните всю документацию по collection, выложите в свой репозиторий, поставьте тег `1.0.0` на этот коммит.
+
+
+13. Создайте .tar.gz этой collection: `ansible-galaxy collection build` в корневой директории collection.
+
+Находясь в папке коллекции инициализируем её сборку:
+````
+$ ansible-galaxy collection build                          
+Created collection for my_namespace.my_collection at /home/oleg/mnt-homeworks/08-ansible-06-module/my_namespace/my_collection/my_namespace-my_collection-1.0.0.tar.gz
+````
+
+В результате, в папке коллекции будет создан файл с именем `my_namespace-my_collection-1.0.0.tar.gz`.
+
+14. Создайте ещё одну директорию любого наименования, перенесите туда single task playbook и архив c collection.
+
+[Готово](./collection_test).
+
+15. Установите collection из локального архива: `ansible-galaxy collection install <archivename>.tar.gz`
+
+Находясь в только что созданной [папке с архивом коллекции](./collection_test) выполним команду:
+````
+$ ansible-galaxy collection install my_namespace-my_collection-1.0.0.tar.gz
+
+Starting galaxy collection install process
+Process install dependency map
+Starting collection install process
+Installing 'my_namespace.my_collection:1.0.0' to '/home/oleg/.ansible/collections/ansible_collections/my_namespace/my_collection'
+my_namespace.my_collection:1.0.0 was installed successfully
+````
+
+В результате коллекция будет установлена в локальную папку пользователя, в чём можно убедиться,
+выполнив команду:
+````
+$ ansible-galaxy collection list                                           
+
+# /home/oleg/.ansible/collections/ansible_collections
+Collection                 Version
+-------------------------- -------
+community.docker           2.5.1  
+my_namespace.my_collection 1.0.0
+...  
+````
+
+16. Запустите playbook, убедитесь, что он работает.
+
+Вызовем наш playbook для проверки:
+````
+$ ansible-playbook playbook/site.yml -v
+Using /etc/ansible/ansible.cfg as config file
+[WARNING]: No inventory was parsed, only implicit localhost is available
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+
+PLAY [localhost] **********************************************************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] ****************************************************************************************************************************************************************************************************************
+ok: [localhost]
+
+TASK [my_namespace.my_collection.my_role : Copy file task] ****************************************************************************************************************************************************************************
+changed: [localhost] => {"changed": true, "message": "File written to path /home/oleg/mnt-homeworks/08-ansible-06-module/from_collection.txt"}
+
+PLAY RECAP ****************************************************************************************************************************************************************************************************************************
+localhost                  : ok=2    changed=1    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+````
+
+Как видим, содержащаяся в коллекции связка роль-модуль отработала и требуемый файл был создан в указанном месторасположении.
+
+Выполним еще раз для проверки идемпотентности:
+````
+$ ansible-playbook playbook/site.yml -v
+Using /etc/ansible/ansible.cfg as config file
+[WARNING]: No inventory was parsed, only implicit localhost is available
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+
+PLAY [localhost] **********************************************************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] ****************************************************************************************************************************************************************************************************************
+ok: [localhost]
+
+TASK [my_namespace.my_collection.my_role : Copy file task] ****************************************************************************************************************************************************************************
+ok: [localhost] => {"changed": false, "message": "File is actual"}
+
+PLAY RECAP ****************************************************************************************************************************************************************************************************************************
+localhost                  : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+````
+
+Видим, что при повторном вызове обновления файла не произошло, условие идемпотентности выполняется.
+
+
+17. В ответ необходимо прислать ссылку на репозиторий с collection
+
+Готово:
+- [коллекция в пространстве имен](./my_namespace/my_collection).
+- [playbook и собранная коллекция](./collection_test).
 
 ---
