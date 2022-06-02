@@ -1,0 +1,6 @@
+projectKey=TestProject-1
+serverUrl=http://51.250.82.40:9000
+serverVersion=9.1.0.47736
+dashboardUrl=http://51.250.82.40:9000/dashboard?id=TestProject-1
+ceTaskId=AYEk9Z11ryHDsKrc_n0H
+ceTaskUrl=http://51.250.82.40:9000/api/ce/task?id=AYEk9Z11ryHDsKrc_n0H
