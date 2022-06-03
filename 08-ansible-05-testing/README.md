@@ -1129,6 +1129,13 @@ ______________________________________ summary _________________________________
 | Роль Lighthouse                | https://github.com/olezhuravlev/lighthouse-role                                          | https://galaxy.ansible.com/olezhuravlev/lighthouse_role |
 | playbook                       | https://github.com/olezhuravlev/mnt-homeworks/tree/MNT-13/08-ansible-05-testing/playbook |                                                         |
 
+
+### Примечание:
+
+> [tox.ini](./playbook/roles/lighthouse_role/tox.ini) для роли [lighthouse_role](./playbook/roles/lighthouse_role).
+> 
+> [tox.ini](./playbook/roles/vector_role/tox.ini) для роли [vector_role](./playbook/roles/vector_role).
+
 ---
 
 # ADDENDUM
