@@ -7,7 +7,13 @@ node("linux"){
     }
     stage("Run playbook"){
         if (secret_check){
-            sh 'ansible-playbook site.yml -i inventory/prod.yml'
+            if ("${prod_run}" == "True") {
+                echo "Prod mode!"
+                sh 'ansible-playbook site.yml -i inventory/prod.yml'
+            } else {
+                echo "Check&Diff mode!"
+                sh 'ansible-playbook site.yml -i inventory/prod.yml --check --diff'
+            }
         }
         else{
             echo 'need more action'

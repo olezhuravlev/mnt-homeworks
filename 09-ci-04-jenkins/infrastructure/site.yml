@@ -1,5 +1,5 @@
 ---
-- name: Preapre all hosts
+- name: Prepare all hosts
   hosts: all
   tasks:
     - name: Create group
@@ -73,6 +73,12 @@
         user: "{{ jenkins_user_name }}"
         state: present
         key: "{{ hostvars['jenkins-master-01']['ssh_key_info']['ssh_public_key'] }}"
+    - name: Copy git-repository private access key to '~/.ssh'
+      become_user: "{{ ansible_user }}"
+      ansible.builtin.copy:
+        src: ./files/netology_id_rsa
+        dest: ~/.ssh/id_rsa
+        mode: "0600"
     - name: Create agent_dir
       become_user: root
       file:
@@ -95,6 +101,7 @@
           - docker-ce
           - docker-ce-cli
           - containerd.io
+          - vim
         state: present
     - name: Update pip
       become_user: root
@@ -117,6 +124,15 @@
         name:
           - selinux
         state: forcereinstall
+    - name: Install Molecule
+      become_user: root
+      pip:
+        executable: pip3
+        name:
+          - "molecule==3.4.0"
+          - molecule_docker
+          - molecule_openstack
+        state: present
     - name: Add local to PATH
       lineinfile:
         dest: ~/.bashrc
@@ -131,6 +147,11 @@
       become_user: root
       user:
         name: "{{ jenkins_user_name }}"
+        groups: docker
+    - name: Add ansible user to dockergroup
+      become_user: root
+      user:
+        name: "{{ ansible_user }}"
         groups: docker
     - name: Restart docker
       become_user: root
