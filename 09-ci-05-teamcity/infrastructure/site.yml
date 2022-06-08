@@ -14,8 +14,9 @@
     - name: Install JDK
       become: true
       package:
-        name: [java-1.8.0-openjdk, java-1.8.0-openjdk-devel]
+        name: [openjdk-8-jre-headless]
         state: present
+        update_cache: yes
   tasks:
     - name: Create Nexus directories
       become: true
@@ -33,14 +34,14 @@
 
     - name: Download Nexus
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       get_url:
         dest: "{{ nexus_directory_package }}/nexus-{{ nexus_version }}.tar.gz"
         url: "{{ nexus_download_url }}/nexus-{{ nexus_version }}-unix.tar.gz"
 
     - name: Unpack Nexus
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       unarchive:
         copy: no
         creates: "{{ nexus_directory_package }}/nexus-{{ nexus_version }}"
@@ -49,7 +50,7 @@
 
     - name: Link to Nexus Directory
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       file:
         dest: "{{ nexus_directory_home }}"
         src: "{{ nexus_directory_package }}/nexus-{{ nexus_version }}"
@@ -57,7 +58,7 @@
 
     - name: Add NEXUS_HOME for Nexus user
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       lineinfile:
         create: yes
         dest: "/home/{{ nexus_user_name }}/.bashrc"
@@ -66,7 +67,7 @@
 
     - name: Add run_as_user to Nexus.rc
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       lineinfile:
         create: yes
         dest: "{{ nexus_directory_home }}/bin/nexus.rc"
@@ -100,7 +101,7 @@
 
     - name: Create Nexus vmoptions
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       template:
         dest: "{{ nexus_directory_home }}/bin/nexus.vmoptions"
         src: nexus.vmoptions.j2
@@ -108,7 +109,7 @@
 
     - name: Create Nexus properties
       become: true
-      become_user: "{{ nexus_user_name }}"
+      # become_user: "{{ nexus_user_name }}"
       template:
         dest: "{{ nexus_directory_data }}/etc/nexus.properties"
         src: nexus.properties.j2
