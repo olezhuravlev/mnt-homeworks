@@ -1,0 +1,22 @@
+imagePullPolicy: IfNotPresent
+gitlabUrl: {{ gitlab_url }}
+runnerRegistrationToken: "{{ gitlab_registration_token }}"
+terminationGracePeriodSeconds: 3600
+concurrent: 10
+checkInterval: 30
+sessionServer:
+ enabled: false
+rbac:
+  create: true
+  clusterWideAccess: true
+  podSecurityPolicy:
+    enabled: false
+    resourceNames:
+      - gitlab-runner
+runners:
+  config: |
+    [[runners]]
+      [runners.kubernetes]
+        namespace = "{{ '{{' '.''Release.Namespace''}}' }}"
+        image = "ubuntu:20.04"
+        privileged = true

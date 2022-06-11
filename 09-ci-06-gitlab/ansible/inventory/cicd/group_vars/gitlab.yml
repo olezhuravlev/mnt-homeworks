@@ -1,0 +1,15 @@
+---
+# Constant variables.
+yc_token: "{{ lookup('env', 'YC_TOKEN') }}"
+yc_path: /home/ubuntu/yandex-cloud/bin
+
+# Values provided by Terraform.
+yc_folder_id: "b1geps08a46a2dtd23vq"
+gitlab_container_registry_id: "crpe78hi2rbr14k3kpgo"
+kubernetes_cluster_id: "catv6tsh5plo1egntboe"
+
+gitlab_host: "51.250.82.37"
+gitlab_url: "http://{{ gitlab_host }}"
+
+# Value provided by GitLab.
+gitlab_registration_token: "GR1348941_YjJHqYUp6NGcrHo98Fs"

@@ -1,0 +1,219 @@
+---
+- name: Setup Gitlab environment
+  hosts: gitlab
+  tasks:
+    - name: Transfer GitLab test application Dockerfile
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/gitlab/Dockerfile"
+        dest: /home/ubuntu/Dockerfile
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Transfer config file for deployment Docker-image in Kubernetes cluster
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/gitlab/k8s.yaml"
+        dest: /home/ubuntu/k8s.yaml
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Transfer Kubernetes Service Account creation specification file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/gitlab/gitlab-admin-service-account.yaml"
+        dest: /home/ubuntu/gitlab-admin-service-account.yaml
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Transfer GitLab Build Scenario file
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/gitlab/.gitlab-ci.yml"
+        dest: /home/ubuntu/.gitlab-ci.yml
+        owner: ubuntu
+        group: ubuntu
+        mode: "0644"
+
+    - name: Install necessary tools
+      become: true
+      ansible.builtin.apt:
+        name:
+          - snapd
+          - jq
+
+    - name: Install classic 'kubectl'
+      become: true
+      ansible.builtin.snap:
+        name: kubectl
+        classic: True
+
+    - name: Install "Helm" - Kubernetes package manager
+      block:
+        - name: Get GPG security key
+          become: true
+          ansible.builtin.shell: curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | tee /usr/share/keyrings/helm.gpg > /dev/null
+          changed_when: False
+
+        - name: Set repository for "Helm"
+          become: true
+          ansible.builtin.shell: echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
+
+        - name: Install "Helm"
+          become: true
+          ansible.builtin.apt:
+            update_cache: yes
+            name:
+              - helm
+
+        - name: Attach Helm-repository to download GitLab Runner distributive from
+          become: false
+          ansible.builtin.shell: helm repo add gitlab https://charts.gitlab.io
+          args:
+            executable: /bin/bash
+            warn: false
+          register: result
+
+        - name: After attaching Helm-repository
+          ansible.builtin.debug:
+            msg: "{{ result.stdout }}"
+
+    - name: Install Yandex.Cloud console
+      block:
+        - name: Download and run Yandex.Cloud console installation script
+          ansible.builtin.shell: curl https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash -s -- -a
+          args:
+            executable: /bin/bash
+            warn: no
+
+        - name: Check if Yandex.Cloud console file exists
+          block:
+            - name: Check Yandex.Cloud path
+              stat:
+                path: "{{ yc_path }}/yc"
+              register: yc_file_exists
+
+            - assert:
+                that: yc_file_exists.stat.exists
+                success_msg: "Yandex.Cloud console file exists"
+                fail_msg: "No Yandex.Cloud console file in {{ yc_path }}"
+
+            - name: Get Yandex.Cloud console version
+              ansible.builtin.shell: "{{ yc_path }}/yc --version"
+              args:
+                executable: /bin/bash
+                warn: no
+              register: yc_version
+              changed_when: False
+
+            - name: Show Yandex.Cloud console version
+              ansible.builtin.debug:
+                var: yc_version.stdout
+              changed_when: False
+
+        - name: Set Yandex.Cloud token
+          ansible.builtin.shell: "{{ yc_path }}/yc config set token {{ yc_token }}"
+          args:
+            executable: /bin/bash
+            warn: yes
+
+        - name: Set Yandex.Cloud folder ID
+          ansible.builtin.shell: "{{ yc_path }}/yc config set folder-id {{ yc_folder_id }}"
+          args:
+            executable: /bin/bash
+            warn: yes
+
+    - name: Obtain Kubernetes Master Address
+      block:
+        - name: Get Kubernetes Master Address
+          become_user: ubuntu
+          ansible.builtin.shell: "{{ yc_path }}/yc managed-kubernetes cluster get {{ kubernetes_cluster_id }} --format=json | jq -r .master.endpoints.external_v4_endpoint"
+          register: kube_url
+          changed_when: False
+
+        - name: Show Kubernetes Master Address
+          ansible.builtin.debug:
+            msg: "Kubernetes Master Address is {{ kube_url.stdout }}"
+
+        - name: Store Kubernetes Master Address in file
+          ansible.builtin.copy:
+            content: "{{ kube_url.stdout }}"
+            dest: /home/ubuntu/kube_url
+
+    - name: Obtain Kubernetes Service Account token for GitLab authentication
+      block:
+        - name: Setup local environment to work with Kubernetes
+          become_user: ubuntu
+          ansible.builtin.shell: "{{ yc_path }}/yc managed-kubernetes cluster get-credentials {{ kubernetes_cluster_id }} --external"
+          register: cluster_get_credentials
+          ignore_errors: False
+          failed_when: "'already exists in kubeconfig' not in cluster_get_credentials.stderr"
+          changed_when: cluster_get_credentials.rc == 0
+
+        - name: After setup local environment to work with Kubernetes
+          ansible.builtin.debug:
+            msg: "Ignored error: {{ cluster_get_credentials.stderr }}"
+
+        - name: Apply Kubernetes Service Account creation specification file
+          become_user: ubuntu
+          ansible.builtin.shell: kubectl apply -f gitlab-admin-service-account.yaml
+
+        - name: Get Kubernetes Service Account token
+          ansible.builtin.shell: kubectl -n kube-system get secrets -o json | jq -r '.items[] | select(.metadata.name | startswith("gitlab-admin")) | .data.token' | base64 --decode
+          register: kube_token
+          changed_when: False
+
+        - name: Store Kubernetes Service Account token in file
+          ansible.builtin.copy:
+            content: "{{ kube_token.stdout }}"
+            dest: /home/ubuntu/kube_sa_token
+
+    - name: Setup "GitLab Runner"
+      block:
+        - name: Transfer GitLab Runner configuration file
+          ansible.builtin.template:
+            src: "{{ playbook_dir }}/gitlab/values.yaml"
+            dest: /home/ubuntu/values.yaml
+            owner: ubuntu
+            group: ubuntu
+            mode: "0644"
+
+        - name: Install "GitLab Runner"
+          ansible.builtin.shell: helm install --namespace default gitlab-runner -f values.yaml gitlab/gitlab-runner
+          register: helm_install_result
+          ignore_errors: False
+          failed_when: "'cannot re-use a name that is still in use' not in helm_install_result.stderr"
+          changed_when: helm_install_result.rc == 0
+          args:
+            executable: /bin/bash
+            warn: false
+
+        - name: After "GitLab Runner" installation
+          ansible.builtin.debug:
+            msg: "{{ helm_install_result.stdout }}"
+
+        - name: Ignored errors of "GitLab Runner" installation
+          ansible.builtin.debug:
+            msg: "Ignored error: {{ helm_install_result.stderr }}"
+
+        - name: Upgrade "GitLab Runner"
+          ansible.builtin.shell: helm upgrade --namespace default gitlab-runner -f values.yaml gitlab/gitlab-runner
+          register: helm_upgrade_result
+          ignore_errors: False
+          changed_when: helm_install_result.rc == 0
+          args:
+            executable: /bin/bash
+            warn: false
+
+        - name: After "GitLab Runner" upgrade
+          ansible.builtin.debug:
+            msg: "{{ helm_upgrade_result.stdout }}"
+
+        - name: Get state of "GitLab Runner"
+          ansible.builtin.shell: kubectl get pods -n default | grep gitlab-runner
+          register: gitlab_runner_state
+          changed_when: False
+
+        - assert:
+            that: "'Running' in gitlab_runner_state.stdout"
+            success_msg: "'GitLab Runner' is up!"
+            fail_msg: "'GitLab Runner' is out of order: {{ gitlab_runner_state.stdout }}"
